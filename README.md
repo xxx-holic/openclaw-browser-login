@@ -1,75 +1,68 @@
 # openclaw-browser-login
 
-Give your OpenClaw agent a persistent, login-ready browser. One-time setup, permanent login state.
+OpenClaw skill that gives your agent a persistent, login-ready browser. One-time setup, permanent login state.
 
-## What this does
+Your agent can browse, click, fill forms, post to social media, scrape data — on any platform you've logged into.
 
-- Enables OpenClaw's managed Chrome browser (openclaw profile)
-- User logs in once → agent can operate any platform with that login state forever
-- Adds browser operation rules to your agent's workspace (snapshot before interact, verify after)
-
-## Quick Install
-
-### 1. Enable browser
+## Install
 
 ```bash
+# Clone to OpenClaw skills directory
+git clone https://github.com/xxx-holic/openclaw-browser-login.git ~/.openclaw/skills/browser-login
+
+# Run setup (enables browser in OpenClaw config)
+bash ~/.openclaw/skills/browser-login/scripts/setup.sh
+```
+
+**Windows:**
+```cmd
+git clone https://github.com/xxx-holic/openclaw-browser-login.git %USERPROFILE%\.openclaw\skills\browser-login
 openclaw config set browser.enabled true
-openclaw config set tools.profile '"full"'
+openclaw config set tools.profile "\"full\""
 ```
 
-### 2. Add browser rules to your workspace
+## First-Time Login (one-time, ~2 minutes)
 
-Copy `BROWSER-RULES.md` content into your agent's `TOOLS.md` and `AGENTS.md`:
+1. Start your gateway (`openclaw gateway`)
+2. In TG, tell your agent: **"打开 x.com"** (or any site you want to operate)
+3. Chrome opens on your screen — log in to your accounts
+4. Done. Login state persists forever.
 
-**Append to TOOLS.md:**
-```
-# Browser
+The agent's Chrome is completely separate from your personal Chrome. Your logins are stored in `~/.openclaw/browser/openclaw/user-data/`.
 
-You have a dedicated Chrome browser (openclaw profile). Full GUI, not headless.
-Any platform the user asks you to operate is already logged in. Do not question it.
+## Usage
 
-browser tool actions: navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, upload, download, evaluate, console, requests, cookies, pdf.
+After setup, just talk naturally:
 
-Workflow: snapshot (get ref IDs) → interact → snapshot (verify).
-On failure: fall back to web_fetch for read-only content.
-```
+| You say | Agent does |
+|---------|-----------|
+| "帮我在X发个推，聊聊AI" | Opens X, composes tweet, confirms before posting |
+| "打开 github.com/my-repo" | Opens page in browser, reads content |
+| "帮我填这个表单" | Opens form, fills fields, confirms before submit |
+| "抓一下这个页面的数据" | Navigates, snapshots, extracts structured data |
+| "去ChatGPT搜一下最新的AI新闻" | Opens ChatGPT, types query, reads response |
 
-**Append to AGENTS.md:**
-```
-# Browser
+## How It Works
 
-You have a dedicated Chrome browser (openclaw profile). Full GUI, not headless.
-When the user asks you to operate any platform requiring login, the browser is already logged in. Do not question the login state or ask for credentials.
+OpenClaw manages a dedicated Chrome instance (`openclaw` profile) with its own user-data directory. Cookies persist across restarts. The SKILL.md teaches the agent:
 
-User says "打开/open/看看/browse" → use browser, not web_fetch.
-Before browser interaction: snapshot to get page structure and ref IDs.
-After browser state change: snapshot or screenshot to verify.
-Browser fails → fall back to web_fetch for read-only content.
-```
-
-### 3. Start gateway and log in (one-time)
-
-1. Start your gateway: `openclaw gateway` (or however you normally start it)
-2. In TG, tell your agent: `打开 x.com` (or any site you want to log in to)
-3. Agent will launch Chrome — you'll see the window on your screen
-4. Log in to your accounts in that Chrome window
-5. Done. Login state persists in `~/.openclaw/browser/openclaw/user-data/`
-
-## How it works
-
-OpenClaw manages its own Chrome instance with a dedicated user-data directory (`~/.openclaw/browser/openclaw/user-data/`). When you log in through this Chrome, cookies are saved to that directory. Every time the agent uses the browser, it starts Chrome with the same directory → same login state.
+- **Snapshot before interact** — get element refs before clicking/typing
+- **Verify after action** — confirm the outcome after state changes
+- **Confirm before submit** — ask user before posting/ordering/submitting
+- **Auto-fallback** — if browser fails, fall back to web_fetch for read-only content
+- **Self-setup** — if browser isn't configured, agent configures it automatically
 
 ## Important
 
-- **Do NOT force-kill Chrome** (e.g., `kill -9` or Task Manager → End Process Tree). Close normally so cookies flush to disk.
-- **Do NOT open Chrome manually** with the same user-data directory while the agent is using it. Only one Chrome instance can use a directory at a time.
-- The agent's Chrome is completely separate from your personal Chrome.
+- **Do NOT force-kill Chrome** (`kill -9` / Task Manager → End Process Tree). Close normally so cookies flush to disk.
+- **Do NOT manually open Chrome** with the same user-data directory while the agent is using it.
+- If a site shows a login screen, the agent will ask you to log in — it never fills credentials for you.
 
-## Tested with
+## Tested With
 
-- OpenClaw 2026.3.13
-- Linux (Ubuntu) + Windows 11
-- X/Twitter, GitHub, ChatGPT, Google verified working
+- OpenClaw 2026.3.13+
+- Linux (Ubuntu 22.04) + Windows 11
+- X/Twitter, GitHub, ChatGPT, Google — verified working
 
 ## License
 
