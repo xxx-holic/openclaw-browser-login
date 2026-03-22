@@ -61,29 +61,39 @@ When you get a timeout error:
 
 ## Screenshot — How to Get Clean Screenshots
 
-Problem: full-viewport screenshots capture the entire browser window including site margins, sidebars, and blank areas. This produces unusable images.
+Problem: `browser screenshot` defaults to capturing the ENTIRE page (fullPage), not just the visible viewport. This produces huge images with mostly blank space, especially on sites with infinite scroll.
 
-Solution: ALWAYS screenshot a specific element, never the full viewport.
+Solution: resize viewport BEFORE taking screenshot, then use CDP to capture viewport only.
 
-Step-by-step:
-1. Run `browser snapshot` to get the page structure with ref IDs
-2. Find the ref of the main content element (article, feed, post, form — whatever the user wants to see)
-3. Run `browser screenshot ref="THE_REF"` to capture ONLY that element
-
+### Standard screenshot procedure:
 ```
-# CORRECT — screenshot a specific element
-browser snapshot profile="openclaw"          ← find ref IDs
-browser screenshot ref="ref_42" profile="openclaw"  ← capture that element
+# Step 1: Resize viewport to reasonable size
+browser resize width=800 height=600 profile="openclaw"
 
-# WRONG — never do these
-browser screenshot profile="openclaw"               ← captures entire viewport with margins
-browser screenshot fullPage=true profile="openclaw"  ← captures entire page, even worse
+# Step 2: Take screenshot (captures viewport area)
+browser screenshot profile="openclaw"
 ```
 
-If you cannot find the right ref, use `browser evaluate` to set viewport to content width first:
+### For element-specific screenshots:
 ```
-browser evaluate expression="document.querySelector('main, article, [role=main]')?.scrollIntoView()" profile="openclaw"
+# Snapshot to find element refs, then screenshot that element
+browser snapshot profile="openclaw"
+browser screenshot ref="ref_42" profile="openclaw"
 ```
+
+### If screenshot still has blank areas (fallback — use CDP directly):
+```bash
+python3 -c "
+import websocket, json, base64
+ws = websocket.create_connection('ws://127.0.0.1:18800/devtools/page/<targetId>', suppress_origin=True)
+ws.send(json.dumps({'id':1,'method':'Page.captureScreenshot','params':{'format':'jpeg','quality':90}}))
+resp = json.loads(ws.recv())
+with open('/tmp/screenshot.jpg','wb') as f:
+    f.write(base64.b64decode(resp['result']['data']))
+ws.close()
+"
+```
+Get targetId from `browser tabs` first. CDP's Page.captureScreenshot always captures viewport only.
 
 ## Browser Operation Workflow
 
