@@ -67,6 +67,13 @@ Priority: use `ref` to screenshot a specific element whenever possible. Only fal
 
 ## Browser Operation Workflow
 
+### Step 0: Maximize window (first time only)
+After the browser starts, maximize the window to fill the screen:
+```
+browser evaluate expression="window.moveTo(0,0); window.resizeTo(screen.availWidth, screen.availHeight);" profile="openclaw"
+```
+This prevents screenshots from capturing desktop background around a small browser window.
+
 ### Step 1: Navigate
 ```
 browser navigate url="https://example.com" profile="openclaw"
