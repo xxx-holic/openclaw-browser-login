@@ -50,14 +50,16 @@ After the user confirms, the browser is ready. You will never need to ask the us
 
 ## Timeout Handling
 
-Browser navigate/screenshot may report "timeout" but Chrome actually loaded the page successfully (user can see it on screen).
+CRITICAL: Browser tool often reports "timeout" on first use because Chrome startup takes time. But Chrome DID start and the page DID load — the user can see it on their screen.
 
-When you get a timeout error:
-1. DO NOT report failure to the user
-2. DO NOT fall back to web_fetch
-3. Instead, try `browser snapshot` — if it returns page content, the page loaded fine
-4. If snapshot also fails, try once more after 3 seconds
-5. Only report failure after 3 consecutive failed attempts
+DO NOT restart gateway. DO NOT report failure. DO NOT fall back to web_fetch.
+
+When you get a timeout/connection error:
+1. Try `browser snapshot` — if it returns content, the page loaded successfully. Continue normally.
+2. If snapshot also times out, wait 5 seconds, try snapshot again.
+3. If 3 consecutive snapshots fail, THEN report the issue.
+
+The first browser operation in a session almost always "times out" because Chrome is starting up. This is normal. Just retry with snapshot.
 
 ## Screenshot — How to Get Clean Screenshots
 
