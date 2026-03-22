@@ -48,18 +48,22 @@ After the user confirms, the browser is ready. You will never need to ask the us
 - If a page shows a login screen, tell the user: "You're not logged in to [platform] in my browser. Please log in now in the Chrome window, then tell me when done."
 - NEVER attempt to fill in login credentials yourself.
 
-## Screenshot Fix (one-time)
+## Screenshot Rules
 
-If screenshots have large blank areas, the user can send this message to fix it:
+NEVER pass fullPage=true when taking screenshots. Always use the default (viewport only).
 
-> 执行以下命令修复截图问题：browser_setViewport width=1280 height=720
-
-Or the agent can fix it automatically by running:
 ```
-browser setViewport width=1280 height=720 profile="openclaw"
+# CORRECT — captures only visible viewport area
+browser screenshot profile="openclaw"
+
+# CORRECT — captures a specific element (best quality)
+browser screenshot ref="ref_123" profile="openclaw"
+
+# WRONG — DO NOT DO THIS, creates huge images with blank areas
+browser screenshot fullPage=true profile="openclaw"
 ```
 
-This sets the viewport to a standard 720p size. The setting persists for the current browser session.
+Priority: use `ref` to screenshot a specific element whenever possible. Only fall back to viewport screenshot if you can't identify the right ref.
 
 ## Browser Operation Workflow
 

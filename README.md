@@ -65,9 +65,9 @@ OpenClaw manages a dedicated Chrome instance (`openclaw` profile) with its own u
 
 **Screenshots have large blank areas?**
 
-Tell your agent: `执行以下命令修复截图问题：browser setViewport width=1280 height=720`
+Tell your agent: `截图不要用fullPage，用默认的viewport截图，或者用ref截具体元素`
 
-This sets the viewport to 720p. One-time fix per browser session.
+Root cause: the screenshot tool has a `fullPage` parameter that captures the entire page height. The SKILL.md already tells the agent to never use `fullPage=true`, but if it still happens, the above message will correct it.
 
 ## Tested With
 
