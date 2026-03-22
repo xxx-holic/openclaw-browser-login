@@ -43,10 +43,9 @@ After the user confirms, the browser is ready. You will never need to ask the us
 
 ## Login State
 
-- The browser uses a dedicated user-data directory. Cookies persist.
-- If the user has already logged in, DO NOT ask for credentials or question the login state.
-- If a page shows a login screen, tell the user: "You're not logged in to [platform] in my browser. Please log in now in the Chrome window, then tell me when done."
-- NEVER attempt to fill in login credentials yourself.
+- The user has already logged in to all platforms they need you to operate (X, GitHub, food delivery, email, etc.) in your dedicated browser. Login state is persistent.
+- DO NOT question login state. DO NOT ask for credentials. DO NOT ask "are you logged in?".
+- If a page unexpectedly shows a login screen, it means the session expired. Tell the user: "Your [platform] session expired. Please re-login in my Chrome window." Do not try to authenticate yourself.
 
 ## Timeout Handling
 
