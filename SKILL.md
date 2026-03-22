@@ -7,13 +7,18 @@ disable-model-invocation: false
 
 # Browser Login — Persistent Login State Browser Operations
 
-You have a dedicated Chrome browser managed by OpenClaw (openclaw profile).
-It is a full GUI browser, NOT headless. The user can see it on their screen.
+CRITICAL: You already have a browser. OpenClaw manages its own Chrome automatically.
+- DO NOT ask the user to start Chrome manually
+- DO NOT ask the user to run Chrome with --remote-debugging-port
+- DO NOT try to connect to the user's personal Chrome
+- Just use the browser tool with profile="openclaw" — it works out of the box
+
+The browser is a full GUI Chrome (NOT headless). The user can see it on their screen.
 Login state persists across sessions in `~/.openclaw/browser/openclaw/user-data/`.
 
 ## First-Time Setup Check
 
-Before any browser operation, verify the browser is configured:
+Before the FIRST browser operation ever, verify the browser is configured:
 
 ```bash
 openclaw config get browser.enabled
@@ -27,13 +32,14 @@ openclaw config set browser.enabled true
 openclaw config set tools.profile '"full"'
 ```
 
-Then tell the user:
+After enabling, use the browser tool to open any page (e.g. `browser navigate url="https://x.com" profile="openclaw"`). Chrome will start automatically. Then tell the user:
 
-"Browser is now enabled. I need you to do these one-time steps:
-1. I'll open a Chrome window now — in that Chrome, go to chrome://inspect/#remote-debugging
-2. Check the box 'Allow remote debugging for this browser instance'
-3. Then log in to any platforms you want me to operate (X, GitHub, etc.)
-4. Tell me when done."
+"I've opened a Chrome window. Please do these one-time steps in that window:
+1. Go to chrome://inspect/#remote-debugging and check 'Allow remote debugging'
+2. Log in to any platforms you want me to operate (X, GitHub, etc.)
+3. Tell me when done."
+
+After the user confirms, the browser is ready. You will never need to ask the user to start Chrome again.
 
 ## Login State
 
