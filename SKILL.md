@@ -107,5 +107,6 @@ navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, u
 
 **Take a screenshot for the user:**
 1. Navigate to the page
-2. Use `browser screenshot` with a specific element ref if possible (avoids whitespace)
-3. If full-page screenshot needed, just use `browser screenshot`
+2. Snapshot first to get ref IDs
+3. Use `browser screenshot ref="ref_xxx"` targeting the main content element — do NOT screenshot the full page
+4. NEVER send a full-viewport screenshot. Always target a specific element ref. Full-page screenshots produce unusable images with large blank areas.
