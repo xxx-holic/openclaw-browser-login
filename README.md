@@ -25,8 +25,11 @@ openclaw config set tools.profile "\"full\""
 
 1. Start your gateway (`openclaw gateway`)
 2. In TG, tell your agent: **"打开 x.com"** (or any site you want to operate)
-3. Chrome opens on your screen — log in to your accounts
-4. Done. Login state persists forever.
+3. Chrome opens on your screen — in that Chrome:
+   - Go to `chrome://inspect/#remote-debugging`
+   - Check **"Allow remote debugging for this browser instance"**
+   - Then log in to your accounts (X, GitHub, etc.)
+4. Tell your agent "登录好了" — done. Login state persists forever.
 
 The agent's Chrome is completely separate from your personal Chrome. Your logins are stored in `~/.openclaw/browser/openclaw/user-data/`.
 

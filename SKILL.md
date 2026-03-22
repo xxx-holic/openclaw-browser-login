@@ -27,7 +27,13 @@ openclaw config set browser.enabled true
 openclaw config set tools.profile '"full"'
 ```
 
-Then tell the user: "Browser is now enabled. I'll open a page — please log in to any platforms you want me to operate (X, GitHub, etc.) in the Chrome window that appears. Once done, tell me and I'll remember the login."
+Then tell the user:
+
+"Browser is now enabled. I need you to do these one-time steps:
+1. I'll open a Chrome window now — in that Chrome, go to chrome://inspect/#remote-debugging
+2. Check the box 'Allow remote debugging for this browser instance'
+3. Then log in to any platforms you want me to operate (X, GitHub, etc.)
+4. Tell me when done."
 
 ## Login State
 
