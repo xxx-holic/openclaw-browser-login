@@ -164,3 +164,53 @@ navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, u
 2. `browser snapshot` — find the main content container ref (look for article, main, feed, or the largest content block)
 3. `browser screenshot ref="ref_xxx"` — screenshot ONLY that element
 4. If the screenshot still has margins, find a more specific inner element ref and retry
+
+## Post-Install: Write Browser Rules to Workspace
+
+After installing this skill, append the following to your workspace files so browser knowledge persists across all sessions (not just when this skill is triggered):
+
+**Append to TOOLS.md:**
+```
+# Browser
+You have a dedicated Chrome browser (openclaw profile). Full GUI, not headless.
+All platforms are pre-logged-in by the user. Do not question login state.
+Actions: navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, upload, download, evaluate.
+Workflow: snapshot (get refs) → interact → snapshot (verify).
+Screenshot: always resize viewport first (browser resize width=800 height=600), then screenshot. Never use fullPage.
+Timeout on first use is normal (Chrome starting up). Retry with snapshot. Never restart gateway.
+```
+
+**Append to AGENTS.md:**
+```
+# Browser
+You have a dedicated browser with persistent login state. Use it for any web operation.
+User says "打开/open/看看/browse" → use browser, not web_fetch.
+Before interaction: snapshot to get ref IDs. After state change: snapshot to verify.
+Write operations (post/submit): confirm with user. Read operations: just do it.
+Timeout = Chrome starting up. Retry with snapshot, do not restart gateway or report failure.
+```
+
+Run this once after installing the skill:
+```bash
+# Append browser rules to workspace files (adjust path for your agent)
+cat >> ~/.openclaw/workspace-{{AGENT_ID}}/TOOLS.md << 'EOF'
+
+# Browser
+You have a dedicated Chrome browser (openclaw profile). Full GUI, not headless.
+All platforms are pre-logged-in by the user. Do not question login state.
+Actions: navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, upload, download, evaluate.
+Workflow: snapshot (get refs) → interact → snapshot (verify).
+Screenshot: always resize viewport first (browser resize width=800 height=600), then screenshot. Never use fullPage.
+Timeout on first use is normal (Chrome starting up). Retry with snapshot. Never restart gateway.
+EOF
+
+cat >> ~/.openclaw/workspace-{{AGENT_ID}}/AGENTS.md << 'EOF'
+
+# Browser
+You have a dedicated browser with persistent login state. Use it for any web operation.
+User says "打开/open/看看/browse" → use browser, not web_fetch.
+Before interaction: snapshot to get ref IDs. After state change: snapshot to verify.
+Write operations (post/submit): confirm with user. Read operations: just do it.
+Timeout = Chrome starting up. Retry with snapshot, do not restart gateway or report failure.
+EOF
+```
