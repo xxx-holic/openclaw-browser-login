@@ -42,6 +42,19 @@ Then tell the user:
 - If a page shows a login screen, tell the user: "You're not logged in to [platform] in my browser. Please log in now in the Chrome window, then tell me when done."
 - NEVER attempt to fill in login credentials yourself.
 
+## Screenshot Fix (one-time)
+
+If screenshots have large blank areas, the user can send this message to fix it:
+
+> 执行以下命令修复截图问题：browser_setViewport width=1280 height=720
+
+Or the agent can fix it automatically by running:
+```
+browser setViewport width=1280 height=720 profile="openclaw"
+```
+
+This sets the viewport to a standard 720p size. The setting persists for the current browser session.
+
 ## Browser Operation Workflow
 
 ### Step 1: Navigate

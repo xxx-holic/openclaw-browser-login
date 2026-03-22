@@ -61,6 +61,14 @@ OpenClaw manages a dedicated Chrome instance (`openclaw` profile) with its own u
 - **Do NOT manually open Chrome** with the same user-data directory while the agent is using it.
 - If a site shows a login screen, the agent will ask you to log in — it never fills credentials for you.
 
+## Troubleshooting
+
+**Screenshots have large blank areas?**
+
+Tell your agent: `执行以下命令修复截图问题：browser setViewport width=1280 height=720`
+
+This sets the viewport to 720p. One-time fix per browser session.
+
 ## Tested With
 
 - OpenClaw 2026.3.13+
