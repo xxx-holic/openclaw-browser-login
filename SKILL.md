@@ -48,22 +48,42 @@ After the user confirms, the browser is ready. You will never need to ask the us
 - If a page shows a login screen, tell the user: "You're not logged in to [platform] in my browser. Please log in now in the Chrome window, then tell me when done."
 - NEVER attempt to fill in login credentials yourself.
 
-## Screenshot Rules
+## Timeout Handling
 
-NEVER pass fullPage=true when taking screenshots. Always use the default (viewport only).
+Browser navigate/screenshot may report "timeout" but Chrome actually loaded the page successfully (user can see it on screen).
+
+When you get a timeout error:
+1. DO NOT report failure to the user
+2. DO NOT fall back to web_fetch
+3. Instead, try `browser snapshot` — if it returns page content, the page loaded fine
+4. If snapshot also fails, try once more after 3 seconds
+5. Only report failure after 3 consecutive failed attempts
+
+## Screenshot — How to Get Clean Screenshots
+
+Problem: full-viewport screenshots capture the entire browser window including site margins, sidebars, and blank areas. This produces unusable images.
+
+Solution: ALWAYS screenshot a specific element, never the full viewport.
+
+Step-by-step:
+1. Run `browser snapshot` to get the page structure with ref IDs
+2. Find the ref of the main content element (article, feed, post, form — whatever the user wants to see)
+3. Run `browser screenshot ref="THE_REF"` to capture ONLY that element
 
 ```
-# CORRECT — captures only visible viewport area
-browser screenshot profile="openclaw"
+# CORRECT — screenshot a specific element
+browser snapshot profile="openclaw"          ← find ref IDs
+browser screenshot ref="ref_42" profile="openclaw"  ← capture that element
 
-# CORRECT — captures a specific element (best quality)
-browser screenshot ref="ref_123" profile="openclaw"
-
-# WRONG — DO NOT DO THIS, creates huge images with blank areas
-browser screenshot fullPage=true profile="openclaw"
+# WRONG — never do these
+browser screenshot profile="openclaw"               ← captures entire viewport with margins
+browser screenshot fullPage=true profile="openclaw"  ← captures entire page, even worse
 ```
 
-Priority: use `ref` to screenshot a specific element whenever possible. Only fall back to viewport screenshot if you can't identify the right ref.
+If you cannot find the right ref, use `browser evaluate` to set viewport to content width first:
+```
+browser evaluate expression="document.querySelector('main, article, [role=main]')?.scrollIntoView()" profile="openclaw"
+```
 
 ## Browser Operation Workflow
 
@@ -100,7 +120,7 @@ navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, u
 1. ALWAYS use `profile="openclaw"` for all browser actions.
 2. ALWAYS snapshot before interacting with elements (you need ref IDs).
 3. ALWAYS verify after state-changing actions (click, fill, submit).
-4. If browser fails or times out: fall back to `web_fetch` for read-only content. Report the failure.
+4. If browser times out: try `browser snapshot` to check if page actually loaded (it usually did). Only fall back to `web_fetch` after 3 consecutive failures.
 5. For write operations (posting, submitting, ordering): confirm with user before clicking submit.
 6. For read operations (browsing, scraping, checking): just do it, no confirmation needed.
 7. NEVER force-close Chrome. Let it close naturally.
@@ -130,6 +150,6 @@ navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, u
 
 **Take a screenshot for the user:**
 1. Navigate to the page
-2. Snapshot first to get ref IDs
-3. Use `browser screenshot ref="ref_xxx"` targeting the main content element — do NOT screenshot the full page
-4. NEVER send a full-viewport screenshot. Always target a specific element ref. Full-page screenshots produce unusable images with large blank areas.
+2. `browser snapshot` — find the main content container ref (look for article, main, feed, or the largest content block)
+3. `browser screenshot ref="ref_xxx"` — screenshot ONLY that element
+4. If the screenshot still has margins, find a more specific inner element ref and retry
