@@ -60,82 +60,165 @@ When you get a timeout/connection error:
 
 The first browser operation in a session almost always "times out" because Chrome is starting up. This is normal. Just retry with snapshot.
 
-## Screenshot — How to Get Clean Screenshots
+## Screenshot — MANDATORY
 
-Problem: `browser screenshot` defaults to capturing the ENTIRE page (fullPage), not just the visible viewport. This produces huge images with mostly blank space, especially on sites with infinite scroll.
+`browser screenshot` defaults to fullPage which produces huge blank images. DO NOT use it directly.
 
-Solution: resize viewport BEFORE taking screenshot, then use CDP to capture viewport only.
+ALWAYS use the screenshot script instead:
 
-### Standard screenshot procedure:
-```
-# Step 1: Resize viewport to reasonable size
-browser resize width=800 height=600 profile="openclaw"
-
-# Step 2: Take screenshot (captures viewport area)
-browser screenshot profile="openclaw"
-```
-
-### For element-specific screenshots:
-```
-# Snapshot to find element refs, then screenshot that element
-browser snapshot profile="openclaw"
-browser screenshot ref="ref_42" profile="openclaw"
-```
-
-### If screenshot still has blank areas (fallback — use CDP directly):
 ```bash
-python3 -c "
-import websocket, json, base64
-ws = websocket.create_connection('ws://127.0.0.1:18800/devtools/page/<targetId>', suppress_origin=True)
-ws.send(json.dumps({'id':1,'method':'Page.captureScreenshot','params':{'format':'jpeg','quality':90}}))
-resp = json.loads(ws.recv())
-with open('/tmp/screenshot.jpg','wb') as f:
-    f.write(base64.b64decode(resp['result']['data']))
-ws.close()
-"
+python3 ~/.openclaw/skills/browser-login/scripts/screenshot.py
 ```
-Get targetId from `browser tabs` first. CDP's Page.captureScreenshot always captures viewport only.
+
+This script:
+1. Sets viewport to 1920x1080 via CDP
+2. Captures viewport-only screenshot (no fullPage)
+3. Resets viewport after capture
+4. Saves to ~/.openclaw/media/screenshot.jpg
+
+Custom output path: `python3 ~/.openclaw/skills/browser-login/scripts/screenshot.py /tmp/my-screenshot.jpg`
+
+After running the script, send the saved image file to the user.
+
+DO NOT use `browser screenshot` directly — it always produces fullPage images with blank space.
+DO NOT try to resize viewport via JavaScript (window.resizeTo doesn't work on main windows).
 
 ## Browser Operation Workflow
 
-### Step 1: Navigate
+### Choosing the right strategy: Ref vs JS
+
+**Ref-based (snapshot → click ref)** — Use for simple, static pages: login forms, search boxes, settings pages, basic CRUD UIs. Reliable when the DOM is shallow and elements are stable.
+
+**JS-based (evaluate)** — Use for modern SPA sites: 小红书, X/Twitter, 知乎, 微信公众号, TikTok, Instagram, and any site with dynamic rendering, infinite scroll, or overlay modals. Aria refs on SPAs often map to footer/hidden elements instead of visible content cards.
+
+**Rule of thumb:** If the page has a complex feed or card layout, default to JS. If it's a simple form or button, use refs.
+
+### Workflow A: Ref-based (simple pages)
+
 ```
-browser navigate url="https://example.com" profile="openclaw"
+Step 1: browser navigate url="..." profile="openclaw"
+Step 2: browser snapshot profile="openclaw"          # get refs
+Step 3: browser click ref="e123" profile="openclaw"  # interact
+Step 4: browser snapshot profile="openclaw"          # verify
 ```
 
-### Step 2: Read page (get element refs)
-```
-browser snapshot profile="openclaw"
-```
-This returns a structured list of elements with `ref` IDs. Use these refs for interaction.
+### Workflow B: JS-based (SPA sites) — PREFERRED for complex pages
 
-### Step 3: Interact
 ```
-browser click ref="ref_123" profile="openclaw"
-browser type ref="ref_456" text="Hello world" profile="openclaw"
-browser fill ref="ref_789" value="content" profile="openclaw"
+Step 1: browser navigate url="..." profile="openclaw"
+Step 2: browser act kind=wait timeMs=2000            # let SPA render
+Step 3: browser act kind=evaluate fn="() => {        # discover elements
+          const cards = document.querySelectorAll('a[href*=keyword]');
+          return JSON.stringify([...cards].map(c => ({
+            href: c.href,
+            y: Math.round(c.getBoundingClientRect().top),
+            visible: c.getBoundingClientRect().top > 0 && c.getBoundingClientRect().top < innerHeight
+          })));
+        }"
+Step 4: browser act kind=evaluate fn="() => {        # interact via JS
+          const el = document.querySelector('selector');
+          el.scrollIntoView({block:'center'});
+          el.click();
+          return 'clicked';
+        }"
+Step 5: Wait 2-3s → screenshot → read image → verify # visual confirmation
 ```
 
-### Step 4: Verify
-After any state-changing action, take a snapshot or screenshot to confirm the outcome:
+### Why JS-first matters
+
+On SPAs like 小红书:
+- `snapshot` returns 100+ refs including footer links (备案/营业执照 etc.)
+- Clicking `ref=e64` expecting a content card may hit a 备案链接 at page bottom
+- Modal overlays render asynchronously — snapshot doesn't wait for them
+- Dynamic URLs have auth tokens that change per render
+
+JS `evaluate` gives you:
+- Precise element selection by semantic attributes (href patterns, data attributes)
+- Bounding rect for visibility checks
+- Direct click without ref ambiguity
+- Structured data extraction (images, text, links) in one call
+
+### Verifying state changes
+
+After ANY click/interaction, always verify the outcome:
+
+1. `browser act kind=wait timeMs=2000` — let the page react
+2. Screenshot + read image — visually confirm (modal opened? page navigated? error shown?)
+3. Or `evaluate` to check DOM state: `document.querySelector('[role=dialog]') !== null`
+
+Never assume a click worked. SPA clicks can silently fail, navigate to wrong pages, or trigger auth redirects.
+
+### Tab management
+
+- Save `targetId` from every `navigate` or `open` call
+- Pass `targetId` in all subsequent operations on that tab
+- Before screenshot: `browser focus targetId=xxx` to ensure correct tab
+- screenshot.py always captures the OS-focused tab, not necessarily the one you're operating on
+
+### SPA Modal pattern
+
+Many platforms (小红书, Twitter, Pinterest) show content in overlay modals:
+```js
+// Detect modal after clicking a card:
+const modal = document.querySelector('[role="dialog"], [class*="mask"], [class*="overlay"], [class*="modal"]');
+if (modal) {
+  // Extract data from modal, not background
+  const imgs = modal.querySelectorAll('img[src*="cdn"]');
+}
 ```
-browser snapshot profile="openclaw"
-```
+
+### Image extraction from CDN
+
+When extracting images from SPA sites:
+1. Use `evaluate` to collect all `img.src` where `naturalWidth > threshold`
+2. Filter out avatars, icons, ads by URL pattern or size
+3. CDN URLs often have auth signatures — download with `Referer` header:
+   ```bash
+   curl -sL -H "Referer: https://www.example.com/" -o out.jpg "CDN_URL"
+   ```
+4. Some CDN quality tiers (e.g. XHS `prv_1` vs `mw_1`) require different auth — test before batch download
 
 ## Available Actions
 
 navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, upload, download, evaluate, console, requests, cookies, pdf.
 
+## Full Browser Capabilities
+
+You can perform ANY action a human can do in a browser. This includes but is not limited to:
+
+**Browsing & Reading:** Navigate pages, read content via snapshot, extract structured text, follow links, switch tabs, scroll, go back/forward.
+
+**Form Interaction:** Fill text fields, select dropdowns, check/uncheck boxes, upload files, click buttons, submit forms. Use snapshot to get ref IDs first.
+
+**Social Media:** Post tweets, like/retweet, follow/unfollow, send DMs, browse feeds, comment on posts — on any platform the user has logged into.
+
+**Drag & Drop:** Use `browser drag` with source and target refs for drag-and-drop operations (reordering lists, moving cards, file uploads via drag).
+
+**DOM Extraction:** Use `browser evaluate` to run JavaScript on the page — extract data, query DOM elements, read computed styles, get element positions.
+
+**Network Capture:** Use `browser requests` to inspect network traffic — see API calls, request/response headers and bodies. Useful for reverse-engineering APIs.
+
+**Cookie Management:** Use `browser cookies` to read, set, or delete cookies for the current domain.
+
+**Console Access:** Use `browser console` to read browser console logs — useful for debugging page errors.
+
+**File Operations:** Use `browser upload` to upload files to file input elements. Use `browser download` to download files from the page. Use `browser pdf` to save the current page as PDF.
+
+**Automation Workflows:** Chain multiple actions together for complex workflows — scrape data from multiple pages, fill multi-step forms, automate repetitive tasks across logged-in platforms.
+
 ## Rules
 
 1. ALWAYS use `profile="openclaw"` for all browser actions.
-2. ALWAYS snapshot before interacting with elements (you need ref IDs).
-3. ALWAYS verify after state-changing actions (click, fill, submit).
-4. If browser times out: try `browser snapshot` to check if page actually loaded (it usually did). Only fall back to `web_fetch` after 3 consecutive failures.
-5. For write operations (posting, submitting, ordering): confirm with user before clicking submit.
-6. For read operations (browsing, scraping, checking): just do it, no confirmation needed.
-7. NEVER force-close Chrome. Let it close naturally.
-8. If page shows login screen unexpectedly: tell user to log in, don't try to authenticate.
+2. ALWAYS pass `targetId` to stay on the correct tab after the first navigate/open.
+3. For SPA sites: use JS `evaluate` for clicking and data extraction, NOT aria refs.
+4. For simple pages: snapshot → ref click is fine.
+5. ALWAYS verify after state-changing actions: wait 2-3s → screenshot → read image, or evaluate DOM state.
+6. If browser times out: try `browser snapshot` to check if page actually loaded (it usually did). Only fall back after 3 consecutive failures.
+7. For write operations (posting, submitting, ordering): confirm with user before clicking submit.
+8. For read operations (browsing, scraping, checking): just do it, no confirmation needed.
+9. NEVER force-close Chrome. Let it close naturally.
+10. If page shows login screen unexpectedly: tell user to log in, don't try to authenticate.
+11. Abort after 3 failures on the same step — switch to a completely different approach (API, curl, different platform).
 
 ## Common Tasks
 
@@ -161,9 +244,8 @@ navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, u
 
 **Take a screenshot for the user:**
 1. Navigate to the page
-2. `browser snapshot` — find the main content container ref (look for article, main, feed, or the largest content block)
-3. `browser screenshot ref="ref_xxx"` — screenshot ONLY that element
-4. If the screenshot still has margins, find a more specific inner element ref and retry
+2. Run `python3 ~/.openclaw/skills/browser-login/scripts/screenshot.py`
+3. Send the saved image (`~/.openclaw/media/screenshot.jpg`) to the user
 
 ## Post-Install: Write Browser Rules to Workspace
 
@@ -176,18 +258,22 @@ You have a dedicated Chrome browser (openclaw profile). Full GUI, not headless.
 All platforms are pre-logged-in by the user. Do not question login state.
 Actions: navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, upload, download, evaluate.
 Workflow: snapshot (get refs) → interact → snapshot (verify).
-Screenshot: always resize viewport first (browser resize width=800 height=600), then screenshot. Never use fullPage.
+Screenshot: DO NOT use `browser screenshot` directly. Run `python3 ~/.openclaw/skills/browser-login/scripts/screenshot.py` instead — it captures viewport-only without blank space.
 Timeout on first use is normal (Chrome starting up). Retry with snapshot. Never restart gateway.
 ```
 
 **Append to AGENTS.md:**
 ```
-# Browser
+# Browser Discipline
 You have a dedicated browser with persistent login state. Use it for any web operation.
 User says "打开/open/看看/browse" → use browser, not web_fetch.
-Before interaction: snapshot to get ref IDs. After state change: snapshot to verify.
+**SPA sites (小红书/X/知乎/微信):** Use JS evaluate for clicking and extraction, NOT aria refs.
+**Simple pages (login/settings/forms):** Snapshot → ref click is fine.
+After every state-changing action: wait 2-3s → screenshot → read image to verify.
+Always pass targetId. Always focus tab before screenshot.
 Write operations (post/submit): confirm with user. Read operations: just do it.
-Timeout = Chrome starting up. Retry with snapshot, do not restart gateway or report failure.
+Timeout = Chrome starting up. Retry with snapshot, do not restart gateway.
+Abort after 3 failures on same step — switch approach entirely.
 ```
 
 Run this once after installing the skill:
@@ -200,7 +286,7 @@ You have a dedicated Chrome browser (openclaw profile). Full GUI, not headless.
 All platforms are pre-logged-in by the user. Do not question login state.
 Actions: navigate, snapshot, screenshot, click, type, fill, press, drag, hover, select, upload, download, evaluate.
 Workflow: snapshot (get refs) → interact → snapshot (verify).
-Screenshot: always resize viewport first (browser resize width=800 height=600), then screenshot. Never use fullPage.
+Screenshot: DO NOT use `browser screenshot` directly. Run `python3 ~/.openclaw/skills/browser-login/scripts/screenshot.py` instead — it captures viewport-only without blank space.
 Timeout on first use is normal (Chrome starting up). Retry with snapshot. Never restart gateway.
 EOF
 
